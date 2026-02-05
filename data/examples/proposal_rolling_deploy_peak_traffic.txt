@@ -1,0 +1,21 @@
+System Design Proposal: Rolling Deployment During Peak Traffic
+
+Overview:
+This proposal outlines a rolling deployment strategy executed while the system is under peak user traffic.
+
+Design:
+- Services are deployed incrementally across instances.
+- Load balancer gradually shifts traffic to new versions.
+- Health checks gate progression of the rollout.
+
+Assumptions:
+- Backward compatibility between versions.
+- Strong monitoring is in place.
+
+Risks:
+- Partial outages if bugs exist.
+- Increased error rates during rollout.
+
+Mitigations:
+- Canary deployments.
+- Immediate rollback triggers based on SLOs.

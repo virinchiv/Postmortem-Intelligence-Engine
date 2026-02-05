@@ -1,0 +1,22 @@
+System Design Proposal: Shared Cache Layer
+
+Overview:
+This proposal introduces a shared in-memory cache (e.g., Redis) to reduce database load and improve read latency.
+
+Design:
+- Cache sits between application services and the primary database.
+- Frequently accessed data is cached with TTLs.
+- Cache-aside strategy is used.
+- Cache invalidation occurs on writes.
+
+Assumptions:
+- Read-heavy workloads dominate.
+- Slight staleness is acceptable.
+
+Risks:
+- Cache inconsistency.
+- Cache becoming a single point of failure.
+
+Mitigations:
+- Graceful fallback to database.
+- Replicated cache with eviction policies.

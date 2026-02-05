@@ -1,0 +1,22 @@
+System Design Proposal: Microservices with Retries
+
+Overview:
+This proposal describes a microservices-based architecture where services communicate over HTTP/gRPC and include retry mechanisms for transient failures.
+
+Design:
+- Each microservice is independently deployable and stateless.
+- Inter-service communication uses timeouts and bounded retries.
+- Retries are implemented with exponential backoff and jitter.
+- Circuit breakers are used to prevent cascading failures.
+
+Assumptions:
+- Failures are mostly transient (network blips, brief overloads).
+- Services can tolerate eventual consistency.
+
+Risks:
+- Retry storms under heavy load.
+- Increased latency due to retries.
+
+Mitigations:
+- Strict retry limits.
+- Centralized observability to detect retry amplification.

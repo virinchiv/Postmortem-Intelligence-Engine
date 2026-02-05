@@ -1,0 +1,21 @@
+System Design Proposal: Reduced Logging for Performance
+
+Overview:
+This proposal reduces logging verbosity to improve system performance and lower storage costs.
+
+Design:
+- Only warnings, errors, and critical events are logged in production.
+- Debug logs are disabled by default.
+- Sampling is applied to high-frequency logs.
+
+Assumptions:
+- Metrics and traces cover most observability needs.
+- Detailed debugging is rare in production.
+
+Risks:
+- Loss of diagnostic information.
+- Harder root-cause analysis.
+
+Mitigations:
+- On-demand log level escalation.
+- Strong metrics and tracing coverage.

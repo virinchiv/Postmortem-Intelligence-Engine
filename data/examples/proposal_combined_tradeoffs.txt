@@ -1,0 +1,22 @@
+System Design Proposal: Combined Performance Tradeoffs
+
+Overview:
+This proposal combines multiple optimizations: retries, shared caching, rolling deployments, and reduced logging.
+
+Design:
+- Microservices use bounded retries.
+- Shared cache reduces database pressure.
+- Rolling deploys minimize downtime.
+- Logging is optimized for signal over volume.
+
+Assumptions:
+- System is mature and well-monitored.
+- Team understands operational tradeoffs.
+
+Risks:
+- Increased system complexity.
+- Hidden failure modes interacting together.
+
+Mitigations:
+- Regular postmortems.
+- Automated testing and staged rollouts.
