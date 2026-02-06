@@ -44,15 +44,30 @@ class MetadataStore:
                 )
             ''')
             
+            # Create patterns table for global failure motifs
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS global_patterns (
+                    pattern_id TEXT PRIMARY KEY,
+                    pattern_type TEXT NOT NULL, -- 'failure_type' or 'component'
+                    group_key TEXT NOT NULL,    -- the type or component name
+                    summary TEXT NOT NULL,
+                    incident_ids TEXT,          -- JSON list of IDs
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
             # Create indexes for common queries
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_organization ON postmortems(organization)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_severity ON postmortems(severity)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_incident_date ON postmortems(incident_date)')
             cursor.execute('CREATE INDEX IF NOT EXISTS idx_raw_text_hash ON postmortems(raw_text_hash)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_pattern_type ON global_patterns(pattern_type)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_group_key ON global_patterns(group_key)')
             
             conn.commit()
             conn.close()
-            print(f"Initialized metadata store at {self.db_path}")
+            print(f"Initialized metadata store with patterns support at {self.db_path}")
             
         except Exception as e:
             print(f"Error initializing database: {e}")
@@ -262,3 +277,57 @@ class MetadataStore:
         except Exception as e:
             print(f"Error deleting postmortem: {e}")
             return False
+    def store_global_pattern(self, pattern_type: str, group_key: str, summary: str, incident_ids: List[str]) -> bool:
+        """Store or update a global failure pattern"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            pattern_id = f"{pattern_type}_{group_key.replace(' ', '_').lower()}"
+            incident_ids_json = json.dumps(incident_ids)
+            
+            cursor.execute('''
+                INSERT OR REPLACE INTO global_patterns 
+                (pattern_id, pattern_type, group_key, summary, incident_ids, updated_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (pattern_id, pattern_type, group_key, summary, incident_ids_json))
+            
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"Error storing global pattern: {e}")
+            return False
+
+    def get_global_patterns(self, pattern_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Retrieve global patterns, optionally filtered by type"""
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            query = "SELECT * FROM global_patterns"
+            params = []
+            
+            if pattern_type:
+                query += " WHERE pattern_type = ?"
+                params.append(pattern_type)
+            
+            cursor.execute(query, params)
+            rows = cursor.fetchall()
+            conn.close()
+            
+            columns = ['pattern_id', 'pattern_type', 'group_key', 'summary', 'incident_ids', 'created_at', 'updated_at']
+            results = []
+            for row in rows:
+                res = dict(zip(columns, row))
+                res['incident_ids'] = json.loads(res['incident_ids'])
+                results.append(res)
+            
+            return results
+        except Exception as e:
+            print(f"Error retrieving global patterns: {e}")
+            return []
+
+    def get_all_postmortems(self) -> List[Dict[str, Any]]:
+        """Retrieve all postmortems in the system"""
+        return self.search_postmortems(limit=1000)

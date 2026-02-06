@@ -206,3 +206,82 @@ class FailureMemory:
         except Exception as e:
             print(f"❌ Memory persistence check failed: {e}")
             return False
+    def perform_pattern_mining(self) -> Dict[str, Any]:
+        """
+        Group incidents by failure_type and shared components, 
+        generate summaries, and store in global_patterns.
+        """
+        from collections import defaultdict
+        
+        all_postmortems = self.metadata_store.get_all_postmortems()
+        
+        failure_type_groups = defaultdict(list)
+        component_groups = defaultdict(list)
+        
+        for pm in all_postmortems:
+            # Group by failure type
+            f_type = pm['root_cause'].get('failure_type', 'unknown')
+            failure_type_groups[f_type].append(pm)
+            
+            # Group by shared components
+            for component in pm['impact'].get('affected_services', []):
+                component_groups[component].append(pm)
+        
+        results = {
+            'failure_types': {},
+            'components': {}
+        }
+        
+        # Process failure type groups
+        for f_type, pms in failure_type_groups.items():
+            if len(pms) < 1: continue
+            
+            summary = self._generate_pattern_summary("failure_type", f_type, pms)
+            incident_ids = [pm['id'] for pm in pms]
+            
+            self.metadata_store.store_global_pattern("failure_type", f_type, summary, incident_ids)
+            results['failure_types'][f_type] = {
+                'count': len(pms),
+                'summary': summary
+            }
+            
+        # Process component groups
+        for component, pms in component_groups.items():
+            if len(pms) < 1: continue
+            
+            summary = self._generate_pattern_summary("component", component, pms)
+            incident_ids = [pm['id'] for pm in pms]
+            
+            self.metadata_store.store_global_pattern("component", component, summary, incident_ids)
+            results['components'][component] = {
+                'count': len(pms),
+                'summary': summary
+            }
+            
+        return results
+
+    def _generate_pattern_summary(self, group_type: str, key: str, pms: List[Dict[str, Any]]) -> str:
+        """Generate a short summary for a group of incidents"""
+        summary_parts = []
+        if group_type == "failure_type":
+            summary_parts.append(f"Recurring pattern of {key} failures.")
+        else:
+            summary_parts.append(f"Recurring failures affecting component: {key}.")
+            
+        titles = [pm['title'] for pm in pms[:3]]
+        summary_parts.append(f"Seen in: {', '.join(titles)}.")
+        
+        # Add a placeholder for "Short pattern summaries (LLM-assisted or rule-based)"
+        # For now, we'll use a rule-based summary. 
+        # In a real scenario, this would call an LLM with the group details.
+        
+        common_factors = []
+        for pm in pms:
+            common_factors.extend(pm['root_cause'].get('contributing_factors', []))
+            
+        if common_factors:
+            from collections import Counter
+            most_common = [f for f, count in Counter(common_factors).most_common(2)]
+            summary_parts.append(f"Common factors: {', '.join(most_common)}.")
+            
+        return " ".join(summary_parts)
